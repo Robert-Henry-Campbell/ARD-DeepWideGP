@@ -1,0 +1,45 @@
+timestamp,event,description,count
+,initial_ARD_rows,Number of rows in ARD_icd10 before merge,1636
+,after_merge,Rows after merge with phecode map,1653
+,duplicate_rows,Duplicate rows found,229
+,after_dropping_duplicates,Rows after removing duplicates,1424
+,mapped_success,Rows successfully mapped to a PHECODE,888
+,mapped_failure,Rows not mapped to any PHECODE,536
+,gbd_summary_level_1,Mapping summary by cause_level_1,
+,gbd_summary_level_2,Mapping summary by cause_level_2,
+2025-11-20T10:45:18.171923Z,load_inputs,"Loaded inputs. mapped rows=1424, MVP rows=1757",1424
+2025-11-20T10:45:18.174286Z,PHECODE__exists,PHECODE_ already present in mapped,888
+2025-11-20T10:45:18.176782Z,mvp_create_PHECODE_,Created PHECODE_ in MVP by splitting Trait; non-null count=1530,1530
+2025-11-20T10:45:18.261131Z,after_mvp_join,Left-joined mapped -> MVP on PHECODE_; result rows=122560,122560
+2025-11-20T10:45:18.264405Z,mvp_match_counts,"MVP matches found=122058, unmatched=502",122058
+2025-11-20T10:45:18.413974Z,mvp_gbd_level1_summary,GBD level 1 summary for MVP join,3
+2025-11-20T10:45:18.469095Z,mvp_gbd_level2_summary,GBD level 2 summary for MVP join,13
+2025-11-20T10:45:22.222155Z,saved_merged_output,Saved merged file to data/2-phecode_mapping/ARD_GBD_ICD10_phecode_mapped_with_MVP.csv,122560
+2025-11-20T10:45:22.432499Z,complete,Completed MVP integration and persisted outputs,122560
+2025-11-20T11:06:03.092393Z,load_inputs,"Loaded inputs. mapped rows=1424, MVP rows=1757",1424
+2025-11-20T11:06:03.094237Z,PHECODE__exists,PHECODE_ already present in mapped,888
+2025-11-20T11:06:03.096774Z,mvp_create_PHECODE_,Created PHECODE_ in MVP by splitting Trait; non-null count=1530,1530
+2025-11-20T11:06:03.098508Z,mapped_flag_normalized,Normalized mapped_flag to boolean,888
+2025-11-20T11:06:03.101371Z,split_mappable_unmappable,Split mapped into mappable=888 and unmappable=536 rows.,888
+2025-11-20T11:06:03.110652Z,mvp_valid_after_drop_blank,MVP rows remaining after dropping blank PHECODE_: 1530,1530
+2025-11-20T11:06:03.114048Z,mvp_dup_stats_before_agg,"MVP rows with duplicate PHECODE_ keys: keys_with_dupes=13, rows_in_those_keys=181",181
+2025-11-20T11:06:03.289940Z,mvp_agg_rows,MVP aggregated to 1 row per PHECODE_: 1362,1362
+2025-11-20T11:06:03.292528Z,mvp_join_mappable,MVP join applied only to mapped_flag==TRUE rows; merged rows=888,888
+2025-11-20T11:06:03.294172Z,mvp_match_final_counts,"MVP matches final=386, unmatched=1038",386
+2025-11-20T11:06:03.308320Z,mvp_gbd_level1_summary,GBD level 1 summary for MVP join,3
+2025-11-20T11:06:03.325354Z,mvp_gbd_level2_summary,GBD level 2 summary for MVP join,13
+2025-11-20T11:06:03.616169Z,saved_merged_output,Saved merged file to data/2-phecode_mapping/ARD_GBD_ICD10_phecode_mapped_with_MVP.csv,1424
+2025-11-20T11:06:03.674223Z,complete,Completed MVP integration and persisted outputs,1424
+2025-11-20T11:17:06.400894Z,load_inputs,"Loaded inputs. mapped rows=1424, MVP rows=1757",1424
+2025-11-20T11:17:06.402515Z,PHECODE__exists,PHECODE_ already present in mapped,888
+2025-11-20T11:17:06.405076Z,mvp_create_PHECODE_,Created PHECODE_ in MVP by splitting Trait; non-null count=1530,1530
+2025-11-20T11:17:06.406230Z,mapped_flag_normalized,Normalized mapped_flag to boolean,888
+2025-11-20T11:17:06.410091Z,split_mappable_unmappable,Split mapped into mappable=888 and unmappable=536 rows.,888
+2025-11-20T11:17:06.416123Z,mvp_drop_no_key,"Dropped MVP rows without PHECODE_: before=1757, after=1530",227
+2025-11-20T11:17:06.418128Z,mvp_dup_stats,"MVP keys with duplicates=13, rows_in_those_keys=181",181
+2025-11-20T11:17:06.420599Z,mvp_join_mappable,"Performed many-to-many join; pre-join mappable rows=888, post-join rows=888",888
+2025-11-20T11:17:06.431697Z,mvp_join_expansion,Expansion factor (post-join mappable rows / pre-join mappable rows) = 1.000,888
+2025-11-20T11:17:06.432356Z,mvp_match_final_counts,"MVP matches final=386, unmatched=1038",386
+2025-11-20T11:17:06.450748Z,mvp_gbd_level1_summary,GBD level 1 summary for MVP join,3
+2025-11-20T11:17:06.470619Z,mvp_gbd_level2_summary,GBD level 2 summary for MVP join,13
+2025-11-20T11:17:06.528158Z,saved_merged_output,Saved merged file to data/2-phecode_mapping/ARD_GBD_ICD10_phecode_mapped_with_MVP.csv,1424

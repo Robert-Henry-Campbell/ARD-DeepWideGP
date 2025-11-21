@@ -1,0 +1,29 @@
+2025-10-29 23:10:07 - Run started. 
+2025-10-29 23:10:07 - Working directory: G:/My Drive/Documents/0Oxford_main/3-Alejo-Taiyu/taiyu-alejo project 
+2025-10-29 23:10:07 - Input rows: ards = 4259 ; casecount = 7228 
+2025-10-29 23:10:07 - Merged rows (left join on ICD10_explo = phenocode): 4259 
+2025-10-29 23:10:07 - Match summary: total = 4259 ; matched = 1806 ; unmatched = 2453 
+2025-10-29 23:10:07 - Saved unmatched ICD10_explo list to: firstocc_ards_unmatched_codes.csv  (unique codes = 1311 ) 
+2025-10-29 23:10:07 - Filter ARD_selected==TRUE: kept = 1636 ; dropped = 2623 
+2025-10-29 23:10:07 - After ARD filter: unmatched rows among kept = 727 
+2025-10-29 23:10:07 - Duplicates detected on ICD10_explo and saved to: firstocc_ards_duplicates_removed.csv  (rows = 725 ) 
+2025-10-29 23:10:07 - Dedup on ICD10_explo: removed = 725 ; remaining rows = 911 
+2025-10-29 23:10:07 - Case-count validation: non-numeric/NA dropped = 479 ; zero-value dropped = 0 ; kept = 432 of 911 
+2025-10-29 23:10:07 - Saved cleaned dataset (filtered + deduped + numeric>0 + sorted) to: firstocc_ards_clean.csv  (rows = 432 ) 
+2025-10-29 23:10:07 - Plot threshold: 1000  -> plotting rows = 211 ; excluded for plotting (<= threshold) = 221 
+2025-10-29 23:10:07 - Plotted cases range: min = 1017 ; max = 47240 
+2025-10-29 23:10:07 - Saved plot index mapping to: firstocc_ards_plotdata_index_mapping.csv 
+2025-10-29 23:10:07 - Grouped plotting:  groups = 10  | mapping written to: firstocc_ards_plot_group_index_mapping.csv 
+2025-10-29 23:10:08 - Saved grouped ggplot to: firstocc_ards_barplot_idx_ticks.png 
+2025-10-29 23:10:08 - FINAL SUMMARY: 
+2025-10-29 23:10:08 -   Start rows (merged)              : 4259 
+2025-10-29 23:10:08 -   Matched after merge              : 1806 
+2025-10-29 23:10:08 -   Unmatched after merge            : 2453 
+2025-10-29 23:10:08 -   Kept after ARD filter            : 1636 
+2025-10-29 23:10:08 -   Unmatched after ARD filter       : 727 
+2025-10-29 23:10:08 -   Duplicates removed (ICD10_explo) : 725 
+2025-10-29 23:10:08 -   Dropped non-numeric/NA cases     : 479 
+2025-10-29 23:10:08 -   Dropped zero-value cases         : 0 
+2025-10-29 23:10:08 -   Final rows (clean)               : 432 
+2025-10-29 23:10:08 -   Plotted rows (> threshold)       : 211 
+2025-10-29 23:10:08 - Run complete. 
