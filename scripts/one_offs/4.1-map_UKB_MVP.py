@@ -16,11 +16,17 @@ Additional tasks:
 - Compute surviving row counts by cause_level_2
 - Save all logs + a bar chart of surviving categories to the SAME directory as the MVP ARD CSV
 
+inputs:
+mvp-ard: ARD GBD ICD10 phecode_map MVP_GWAS availability CSV. 
+    unique ICD10_y (individual diagnoses)
+    duplicates of ICD10_explo (grouped diagnoses)
 
+ukb-ard: GBD ARD UKB 2025 ICD10 case counts CSV.
+    - note that the GBD ARD is not strictly speaking needed as you have it in mvp-ard. you doubled your work somwhere. 
 
 Example:
 python scripts/one_offs/4.1-map_UKB_MVP.py \
-  --mvp-ard data/2-phecode_mapping/ARD_GBD_ICD10_phecode_mapped_with_MVP.csv \
+  --mvp-ard data/2-phecode_mapping/2.2-map_and_join_MVP/ARD_GBD_ICD10_phecode_mapped_with_MVP.csv \
   --ukb-ard data/3-identify-UKB-casecount-ARDs/extract_casecount_ukb2025/GBD_ARD_UKB_2025_ICD0_casecounts.csv \
   --output-dir data/4-integrate_MVP_UKB/2025_casecount \
   --ukb-case-threshold 10000
@@ -195,7 +201,7 @@ def main() -> None:
     prefix = args.output_prefix
     log_path = output_dir / f"{prefix}_mapping_log.txt"
     plot_path = output_dir / f"{prefix}_surviving_cause_level2_plot.png"
-    counts_csv_path = output_dir / f"{prefix}_surviving_cause_level2_counts.csv"
+    counts_csv_path = output_dir / f"{prefix}_surviving_cause_level2_counts_uniqueICD10_category.csv"
     filtered_csv_path = output_dir / f"{prefix}_mapped_ards_MVP_GWAS_and_UKB_{args.ukb_case_threshold}case.csv"
 
     log_lines: List[str] = [
@@ -219,7 +225,13 @@ def main() -> None:
     log_lines.append(f"After prefixing UKB columns: {len(ukb_prefixed)} rows")
     log_lines.append("Columns now begin with 'UKB_' except for ICD10_explo.\n")
 
-    merged = pd.merge(mvp_df, ukb_prefixed, on="ICD10_explo", how="inner")
+    merged = pd.merge(
+        mvp_df, 
+        ukb_prefixed, 
+        on="ICD10_explo", 
+        how="inner",
+        validate="many_to_one") #testing the validation not sure it's right
+        
     log_lines.append(f"Rows after MVP–UKB ICD10 merge (inner join): {len(merged)}")
 
     kept_icd10 = set(merged["ICD10_explo"])
@@ -235,7 +247,11 @@ def main() -> None:
     log_lines.append("")
 
     if args.cause_col in filtered.columns:
-        cause_counts = filtered[args.cause_col].value_counts().sort_index()
+        cause_counts = (
+            filtered.drop_duplicates(subset="ICD10_explo", keep="first")[args.cause_col]
+            .value_counts()
+            .sort_index()
+        )
         cause_counts.to_csv(counts_csv_path, header=["count"])
         log_lines.append("Surviving row counts by cause_level_2:")
         for k, v in cause_counts.items():

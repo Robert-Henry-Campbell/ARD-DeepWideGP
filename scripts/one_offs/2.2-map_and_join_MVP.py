@@ -22,18 +22,23 @@ import datetime
 import pandas as pd
 import numpy as np
 
+os.chdir("/mnt/sdg/robert/deepwidegp/ARD-DeepWideGP/")
+
 # -----------------------
 # Config / paths
 # -----------------------
-MAPPED_IN = "data/2-phecode_mapping/ARD_GBD_ICD10_phecode_mapped_nov_19_2025.csv"
+MAPPED_IN = "data/2-phecode_mapping/ARD_GBD_ICD10_phecode_mapped_WIDE.csv"
 MVP_META_IN = "data/1-inputs/MVP_R4.1000G_AGR.DataDictionary_and_Counts_20240719.csv"
-LOG_PICKLE = "data/2-phecode_mapping/full_mapping_log.pkl"
+OUT_DIR = "data/2-phecode_mapping/2.2-map_and_join_MVP"
+LOG_PICKLE = f"{OUT_DIR}/full_mapping_log.pkl"
 
-MAPPED_OUT = "data/2-phecode_mapping/ARD_GBD_ICD10_phecode_mapped_with_MVP.csv"
-LOG_SUMMARY_CSV = "data/2-phecode_mapping/mapping_log_summary.csv"
-GBD_LVL1_OUT = "data/2-phecode_mapping/mvp_join_summary_level1.csv"
-GBD_LVL2_OUT = "data/2-phecode_mapping/mvp_join_summary_level2.csv"
+MAPPED_OUT = f"{OUT_DIR}/ARD_GBD_ICD10_phecode_mapped_with_MVP.csv"
+LOG_SUMMARY_CSV = f"{OUT_DIR}/mapping_log_summary.csv"
+GBD_LVL1_OUT = f"{OUT_DIR}/mvp_join_summary_level1.csv"
+GBD_LVL2_OUT = f"{OUT_DIR}/mvp_join_summary_level2.csv"
 FULL_LOG_OUT = LOG_PICKLE  # overwrite the existing pickle with updated logs
+
+os.makedirs(OUT_DIR, exist_ok=True)
 
 # -----------------------
 # Utilities: logging helper
@@ -66,6 +71,24 @@ def append_log_entry(log_list, event, description, count=None, table=None):
     log_list.append(rec)
     return rec
 
+def log_icd10_unique_counts(df, label, include_phe=True, include_mvp=True):
+    """
+    Log a compact table of unique counts keyed by ICD10_explo to parallel row-level logging.
+    """
+    if "ICD10_explo" not in df.columns:
+        return
+    row = {
+        "label": label,
+        "n_rows": df.shape[0],
+        "n_unique_ICD10_explo": df["ICD10_explo"].nunique()
+    }
+    if include_phe and "PHECODE_" in df.columns:
+        row["n_unique_PHECODE_"] = df["PHECODE_"].nunique()
+    if include_mvp and "MVP_PHECODE_" in df.columns:
+        row["n_unique_MVP_PHECODE_"] = df["MVP_PHECODE_"].nunique()
+    table = pd.DataFrame([row])
+    append_log_entry(log_records, f"unique_counts_{label}", f"Unique ICD10_explo-level counts for {label}", table=table)
+
 # -----------------------
 # Step 1: load inputs
 # -----------------------
@@ -79,6 +102,7 @@ mvp = pd.read_csv(MVP_META_IN, dtype=str)
 
 log_records = load_or_init_log(LOG_PICKLE)
 append_log_entry(log_records, "load_inputs", f"Loaded inputs. mapped rows={mapped.shape[0]}, MVP rows={mvp.shape[0]}", count=mapped.shape[0])
+log_icd10_unique_counts(mapped, "mapped_input", include_phe="PHECODE_" in mapped.columns, include_mvp=False)
 
 # -----------------------
 # Step 2: ensure PHECODE_ in mapped exists
@@ -114,8 +138,8 @@ append_log_entry(log_records, "mvp_create_PHECODE_", f"Created PHECODE_ in MVP b
 # -----------------------
 
 # Ensure mapped_flag exists and is boolean
-if 'mapped_flag' not in mapped.columns:
-    mapped['mapped_flag'] = mapped['PHECODE'].notna()
+if 'ICDO10_Phecode_mapped_flag' not in mapped.columns:
+    mapped['ICDO10_Phecode_mapped_flag'] = mapped['PHECODE'].notna()
     append_log_entry(log_records, "mapped_flag_created_from_PHECODE", "Created mapped_flag from presence of PHECODE", count=int(mapped['mapped_flag'].sum()))
 
 _truth_map = {
@@ -132,13 +156,15 @@ def normalize_flag(val):
     s = str(val).strip().lower()
     return _truth_map.get(s, False)
 
-mapped['mapped_flag'] = mapped['mapped_flag'].apply(normalize_flag).astype(bool)
-append_log_entry(log_records, "mapped_flag_normalized", "Normalized mapped_flag to boolean", count=int(mapped['mapped_flag'].sum()))
+mapped['ICDO10_Phecode_mapped_flag'] = mapped['ICDO10_Phecode_mapped_flag'].apply(normalize_flag).astype(bool)
+append_log_entry(log_records, "mapped_flag_normalized", "Normalized mapped_flag to boolean", count=int(mapped['ICDO10_Phecode_mapped_flag'].sum()))
 
 # Split mapped
-mapped_mappable = mapped[mapped['mapped_flag']].copy()
-mapped_unmappable = mapped[~mapped['mapped_flag']].copy()
+mapped_mappable = mapped[mapped['ICDO10_Phecode_mapped_flag']].copy()
+mapped_unmappable = mapped[~mapped['ICDO10_Phecode_mapped_flag']].copy()
 append_log_entry(log_records, "split_mappable_unmappable", f"Split mapped into mappable={mapped_mappable.shape[0]} and unmappable={mapped_unmappable.shape[0]} rows.", count=int(mapped_mappable.shape[0]))
+log_icd10_unique_counts(mapped_mappable, "mapped_mappable_prejoin", include_mvp=False)
+log_icd10_unique_counts(mapped_unmappable, "mapped_unmappable", include_mvp=False)
 
 # Normalize PHECODE_ fields and treat 'nan'/'none'/' ' as missing
 def clean_key_series(s):
@@ -160,12 +186,19 @@ dupe_counts = mvp_valid['PHECODE_'].value_counts()
 n_keys_with_dupes = int((dupe_counts > 1).sum())
 n_rows_in_duplicate_keys = int(dupe_counts[dupe_counts > 1].sum()) if (dupe_counts > 1).any() else 0
 append_log_entry(log_records, "mvp_dup_stats", f"MVP keys with duplicates={n_keys_with_dupes}, rows_in_those_keys={n_rows_in_duplicate_keys}", count=n_rows_in_duplicate_keys)
+mvp_valid = mvp_valid.drop_duplicates(subset=['PHECODE_'], keep='first')
 
 # Perform many-to-many join: preserve all mapped_mappable columns and bring in full MVP rows (prefixed)
 # Use add_prefix to avoid name collisions; keep all MVP columns
 mvp_prefixed = mvp_valid.add_prefix("MVP_")
 # The join key on right is "MVP_PHECODE_"
-merged_mappable = mapped_mappable.merge(mvp_prefixed, left_on="PHECODE_", right_on="MVP_PHECODE_", how="left")
+merged_mappable = mapped_mappable.merge(
+    mvp_prefixed, 
+    left_on="PHECODE_", 
+    right_on="MVP_PHECODE_", 
+    how="left", 
+    validate="many_to_one"
+    )
 
 append_log_entry(log_records, "mvp_join_mappable", f"Performed many-to-many join; pre-join mappable rows={mapped_mappable.shape[0]}, post-join rows={merged_mappable.shape[0]}", count=int(merged_mappable.shape[0]))
 
@@ -188,6 +221,16 @@ merged['mvp_match_flag'] = merged['MVP_PHECODE_'].notna() if 'MVP_PHECODE_' in m
 n_matched = int(merged['mvp_match_flag'].sum())
 n_unmatched = int(merged.shape[0] - n_matched)
 append_log_entry(log_records, "mvp_match_final_counts", f"MVP matches final={n_matched}, unmatched={n_unmatched}", count=n_matched)
+if "ICD10_explo" in merged.columns:
+    uniq_match = (
+        merged[["ICD10_explo", "mvp_match_flag"]]
+        .drop_duplicates()
+        .groupby("mvp_match_flag")
+        .size()
+        .reset_index(name="n_unique_ICD10_explo")
+    )
+    append_log_entry(log_records, "unique_icd10_match_counts", "Unique ICD10_explo counts by MVP match flag", table=uniq_match)
+log_icd10_unique_counts(merged, "merged_post_join")
 
 # -----------------------
 # Step 5: compute summaries by GBD level 1 and level 2
@@ -206,16 +249,40 @@ def gbd_match_summary(df, gbd_col):
     summary['pct_unmatched'] = (summary['n_unmatched'] / summary['n_total']).round(4)
     return summary
 
+def gbd_match_summary_unique_icd10(df, gbd_col):
+    """
+    Deduplicate on ICD10_explo before summarizing to avoid counting the same category multiple times.
+    """
+    if gbd_col not in df.columns or "ICD10_explo" not in df.columns:
+        return None
+    dedup = df.drop_duplicates(subset=[gbd_col, "ICD10_explo"])
+    total = dedup.groupby(gbd_col).size().rename("n_unique_icd10").reset_index()
+    matched = dedup[dedup['mvp_match_flag']].groupby(gbd_col).size().rename("n_unique_icd10_matched").reset_index()
+    unm = dedup[~dedup['mvp_match_flag']].groupby(gbd_col).size().rename("n_unique_icd10_unmatched").reset_index()
+    summary = total.merge(matched, on=gbd_col, how='left').merge(unm, on=gbd_col, how='left').fillna(0)
+    summary['n_unique_icd10'] = summary['n_unique_icd10'].astype(int)
+    summary['n_unique_icd10_matched'] = summary['n_unique_icd10_matched'].astype(int)
+    summary['n_unique_icd10_unmatched'] = summary['n_unique_icd10_unmatched'].astype(int)
+    summary['pct_unique_icd10_matched'] = (summary['n_unique_icd10_matched'] / summary['n_unique_icd10']).round(4)
+    summary['pct_unique_icd10_unmatched'] = (summary['n_unique_icd10_unmatched'] / summary['n_unique_icd10']).round(4)
+    return summary
+
 lvl1_summary = gbd_match_summary(merged, "cause_level_1")
 lvl2_summary = gbd_match_summary(merged, "cause_level_2")
+lvl1_summary_unique = gbd_match_summary_unique_icd10(merged, "cause_level_1")
+lvl2_summary_unique = gbd_match_summary_unique_icd10(merged, "cause_level_2")
 
 if lvl1_summary is not None:
     append_log_entry(log_records, "mvp_gbd_level1_summary", "GBD level 1 summary for MVP join", count=int(lvl1_summary.shape[0]), table=lvl1_summary)
     lvl1_summary.to_csv(GBD_LVL1_OUT, index=False)
+if lvl1_summary_unique is not None:
+    append_log_entry(log_records, "mvp_gbd_level1_summary_unique_icd10", "GBD level 1 summary (unique ICD10_explo) for MVP join", count=int(lvl1_summary_unique.shape[0]), table=lvl1_summary_unique)
 
 if lvl2_summary is not None:
     append_log_entry(log_records, "mvp_gbd_level2_summary", "GBD level 2 summary for MVP join", count=int(lvl2_summary.shape[0]), table=lvl2_summary)
     lvl2_summary.to_csv(GBD_LVL2_OUT, index=False)
+if lvl2_summary_unique is not None:
+    append_log_entry(log_records, "mvp_gbd_level2_summary_unique_icd10", "GBD level 2 summary (unique ICD10_explo) for MVP join", count=int(lvl2_summary_unique.shape[0]), table=lvl2_summary_unique)
 
 # -----------------------
 # Step 6: persist merged dataframe and update summary CSVs / pickle
@@ -244,7 +311,7 @@ with open(FULL_LOG_OUT, "wb") as f:
 for rec in log_records:
     if rec.get("table") is not None:
         ev = rec.get("event", "table")
-        fname = f"data/2-phecode_mapping/log_table_{ev}.csv"
+        fname = f"{OUT_DIR}/log_table_{ev}.csv"
         try:
             rec['table'].to_csv(fname, index=False)
         except Exception:
